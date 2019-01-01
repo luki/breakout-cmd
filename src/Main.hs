@@ -20,6 +20,8 @@ data GameColor
   | GCPurple
   | GCBlue
 
+type Coord = (Int, Int)
+
 main :: IO ()
 main = do
   -- Preparations
@@ -34,26 +36,33 @@ main = do
   when (isNothing actualSize) (return ())
   let (Window{height, width}) = fromJust actualSize
 
+  -- TODO: check if the playing field is big enough
+
   -- Create Game Field
   let colorArray = replicate 6 $ replicate width True
-  renderRows 0 [GCGreen,GCYellow,GCOrange,GCRed,GCPurple,GCBlue] colorArray
+  drawRows 0 [GCGreen,GCYellow,GCOrange,GCRed,GCPurple,GCBlue] colorArray
+  drawPlayer (width `quot` 2, height) -- quot divides ints, returns int
 
-  putStrLn "Hello, Haskell!"
 
-renderRows :: Int -> [GameColor] -> [[Bool]] -> IO ()
-renderRows _  _ [] = return ()
-renderRows row (w:ws) (x:xs) = do
-  renderRow row 0 w x
-  renderRows (row + 1) ws xs
+drawRows :: Int -> [GameColor] -> [[Bool]] -> IO ()
+drawRows _  _ [] = return ()
+drawRows row (w:ws) (x:xs) = do
+  drawRow row 0 w x
+  drawRows (row + 1) ws xs
 
--- Renders all blocks of a single row
-renderRow :: Int -> Int -> GameColor -> [Bool] -> IO ()
-renderRow _ _ _ [] = return ()
-renderRow row column color (x:xs) = do
+-- draws all blocks of a single row
+drawRow :: Int -> Int -> GameColor -> [Bool] -> IO ()
+drawRow _ _ _ [] = return ()
+drawRow row column color (x:xs) = do
   setCursorPosition row column
   setColor color
   putStrLn "▆"
-  renderRow row (column + 1) color xs
+  drawRow row (column + 1) color xs
+
+drawPlayer :: Coord -> IO ()
+drawPlayer (x,y) = do
+  setCursorPosition y x
+  putStrLn "━"
 
 setColor :: GameColor -> IO ()
 setColor color = case color of
