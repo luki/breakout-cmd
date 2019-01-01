@@ -2,6 +2,8 @@
 
 module Main where
 
+import Prelude hiding (Either(..))
+
 import System.Console.ANSI
 import System.Console.Terminal.Size
 import Control.Monad (when)
@@ -20,29 +22,47 @@ data GameColor
   | GCPurple
   | GCBlue
 
-type Coord = (Int, Int)
+data Direction
+  = Left
+  | Right
+  | Quit
+  deriving (Eq)
+
+type Coords = (Int, Int)
+type Bounds = Coords
 
 main :: IO ()
 main = do
-  -- Preparations
-  hSetEcho stdin False -- Hides input characters
-  hSetBuffering stdin  NoBuffering
-  hSetBuffering stdout NoBuffering
-  hideCursor
-  clearScreen
-
   -- Window Size
   actualSize <- size
   when (isNothing actualSize) (return ())
   let (Window{height, width}) = fromJust actualSize
 
-  -- TODO: check if the playing field is big enough
+  setupGame (width, height)
+
+setupGame :: Bounds -> IO ()
+setupGame bounds@(maxX, maxY) = do
+  hSetEcho stdin False
+  hSetBuffering stdin  NoBuffering
+  hSetBuffering stdout NoBuffering
+  hideCursor
+
+  -- quot divides two integers and rounds
+  gameLoop ((maxX `quot` 2), maxY) bounds
+
+
+gameLoop :: Coords -> Bounds -> IO ()
+gameLoop coords bounds@(width, height) = do
+  clearScreen
 
   -- Create Game Field
   let colorArray = replicate 6 $ replicate width True
   drawRows 0 [GCGreen,GCYellow,GCOrange,GCRed,GCPurple,GCBlue] colorArray
-  drawPlayer (width `quot` 2, height) -- quot divides ints, returns int
 
+  drawPlayer coords
+  dir <- getDirectionFromInput
+  when (dir == Quit) (return ())
+  gameLoop (updatePlayerCoords coords bounds dir) bounds
 
 drawRows :: Int -> [GameColor] -> [[Bool]] -> IO ()
 drawRows _  _ [] = return ()
@@ -59,7 +79,7 @@ drawRow row column color (x:xs) = do
   putStrLn "▆"
   drawRow row (column + 1) color xs
 
-drawPlayer :: Coord -> IO ()
+drawPlayer :: Coords -> IO ()
 drawPlayer (x,y) = do
   setCursorPosition y x
   putStrLn "━"
@@ -72,6 +92,20 @@ setColor color = case color of
   GCRed    -> setSGR [SetColor Foreground Vivid Red]
   GCPurple -> setSGR [SetColor Foreground Vivid Magenta]
   GCBlue   -> setSGR [SetColor Foreground Vivid Blue]
+
+updatePlayerCoords :: Coords -> Bounds -> Direction -> Coords
+updatePlayerCoords coords@(x,y) (maxX, _) dir = case dir of
+  Left  -> if (x > 0) then (x-1,y) else coords
+  Right -> if (x < maxX-1) then (x+1,y) else coords
+
+getDirectionFromInput :: IO Direction
+getDirectionFromInput = do
+  directionToInput =<< getChar
+  where directionToInput char = case char of
+          'a' -> return Left
+          'd' -> return Right
+          'q' -> return Quit
+          _   -> getDirectionFromInput
 
 -- Check if over
 isDone :: [[Bool]] -> Bool
